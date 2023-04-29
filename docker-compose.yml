@@ -1,0 +1,21 @@
+version: '3'
+
+services:
+  featurelab:
+    build:
+      context: .
+    image: torresjeff/featurelab
+    container_name: featurelab
+    ports:
+      - "3000:3000"
+    depends_on:
+      - mongodb
+
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb
+    volumes:
+      - mongodb_data:/app/featurelab/db
+
+volumes:
+  mongodb_data:
