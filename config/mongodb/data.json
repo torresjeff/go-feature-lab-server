@@ -1,0 +1,34 @@
+[
+  {
+    "app": "FeatureLab",
+    "feature": "ShowRecommendations",
+    "allocations": [
+      {
+        "treatment": "C",
+        "weight": 10
+      },
+      {
+        "treatment": "T1",
+        "weight": 10
+      },
+      {
+        "treatment": "T2",
+        "weight": 10
+      }
+    ]
+  },
+  {
+    "app": "FeatureLab",
+    "feature": "ChangeBuyButtonColor",
+    "allocations": [
+      {
+        "treatment": "C",
+        "weight": 32
+      },
+      {
+        "treatment": "T1",
+        "weight": 68
+      }
+    ]
+  }
+]
