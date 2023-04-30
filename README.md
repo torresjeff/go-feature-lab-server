@@ -1,5 +1,5 @@
-# Feature Lab server
-Backend for Go Feature Lab, a feature flag solution for Go.
+# Feature Lab Server
+Feature Lab Server is the backend for Feature Lab, a feature flag solution in Go.
 
 Run the server:
 ```shell
