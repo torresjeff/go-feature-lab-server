@@ -17,9 +17,8 @@ services:
     volumes:
       - mongodb_data:/app/featurelab/db
       - ./config/mongodb:/app/featurelab/db/config # contains init.sh script
-    # { command1 && command2 } & ==> this syntax runs command1 and 2 sequentially in the background, allowing mongod to execute in the foreground
-    #command: bash -c "{/app/featurelab/db/config/init.sh && /app/featurelab/db/config/seed.sh} & docker-entrypoint.sh mongod"
-    command: bash -c "/app/featurelab/db/config/init.sh & docker-entrypoint.sh mongod"
+      # See: https://stackoverflow.com/a/42917632 and https://stackoverflow.com/a/72088892
+      - ./config/mongodb/init.sh:/docker-entrypoint-initdb.d/init.sh
 
 volumes:
   mongodb_data:

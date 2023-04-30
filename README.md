@@ -5,3 +5,8 @@ Run the server:
 ```shell
 $ docker-compose up -d
 ```
+
+Stop the server:
+```shell
+$ docker-compose stop
+```
