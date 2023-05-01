@@ -5,6 +5,7 @@ import (
 	"errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"time"
 )
 
@@ -29,27 +30,55 @@ type FeatureLabDAO struct {
 	queryTimeout         time.Duration
 }
 
-func NewFeatureLabDAO(mongo *mongo.Client, queryTimeout time.Duration) *FeatureLabDAO {
-	return &FeatureLabDAO{
-		featureLabCollection: mongo.Database(FeatureLabDB).Collection(FeatureLabCollection),
+func NewFeatureLabDAO(ctx context.Context, mongoURI string, queryTimeout time.Duration) (dao *FeatureLabDAO, disconnect func()) {
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(mongoURI))
+
+	disconnect = func() {
+		if err = client.Disconnect(ctx); err != nil {
+			panic(err)
+		}
+	}
+
+	dao = &FeatureLabDAO{
+		featureLabCollection: client.Database(FeatureLabDB).Collection(FeatureLabCollection),
 		queryTimeout:         queryTimeout,
 	}
+
+	return dao, disconnect
 }
 
-func (dao *FeatureLabDAO) FetchFeature(app, featureName string) (*FeatureEntity, error) {
+func (dao *FeatureLabDAO) FetchFeature(app, featureName string) (FeatureEntity, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), dao.queryTimeout)
 	defer cancel()
+
 	var result FeatureEntity
 	err := dao.featureLabCollection.
 		FindOne(ctx, bson.D{{"app", app}, {"feature", featureName}}).
 		Decode(&result)
 
 	if err == mongo.ErrNoDocuments {
-		return nil, ErrNotFound
+		return FeatureEntity{}, ErrNotFound
 	} else if err != nil {
 		// TODO: error handling, retries
+		return FeatureEntity{}, err
+	}
+
+	return result, nil
+}
+
+func (dao *FeatureLabDAO) FetchFeatures(app string) ([]FeatureEntity, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), dao.queryTimeout)
+	defer cancel()
+
+	cursor, err := dao.featureLabCollection.Find(ctx, bson.D{{"app", app}})
+	if err != nil {
 		return nil, err
 	}
 
-	return &result, nil
+	var results []FeatureEntity
+	if err = cursor.All(ctx, &results); err != nil {
+		return nil, err
+	}
+
+	return results, nil
 }

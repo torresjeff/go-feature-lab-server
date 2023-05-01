@@ -8,6 +8,10 @@ require (
 	go.mongodb.org/mongo-driver v1.11.4
 )
 
+//replace (
+//	github.com/torresjeff/go-feature-lab => ../go-feature-lab
+//)
+
 require (
 	github.com/andybalholm/brotli v1.0.5 // indirect
 	github.com/golang/snappy v0.0.4 // indirect

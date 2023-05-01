@@ -7,11 +7,10 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/torresjeff/go-feature-lab-server/model"
 	"github.com/torresjeff/go-feature-lab/featurelab"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -23,17 +22,11 @@ func main() {
 		"URI where mongo istance is located. Eg: mongodb://hostname:27017")
 	flag.Parse()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	dbCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(mongoURI))
-	defer func() {
-		if err = client.Disconnect(ctx); err != nil {
-			panic(err)
-		}
-	}()
-
-	featureLabDAO := model.NewFeatureLabDAO(client, model.DefaultQueryTimeout)
+	featureLabDAO, disconnect := model.NewFeatureLabDAO(dbCtx, mongoURI, model.DefaultQueryTimeout)
+	defer disconnect()
 
 	features := []featurelab.Feature{
 		featurelab.NewFeature("FeatureLab", "ShowRecommendations", []featurelab.FeatureAllocation{
@@ -60,17 +53,23 @@ func main() {
 
 	// Fetches all features for an app
 	v1.Get("/app/:app/features", func(c *fiber.Ctx) error {
-		if c.Params("app") == "FeatureLab" {
-			return c.Status(http.StatusOK).JSON(features)
+		app := strings.TrimSpace(c.Params("app"))
+		if app == "" {
+			return c.Status(http.StatusBadRequest).Send([]byte(errBadRequest))
 		}
 
-		return c.Status(http.StatusNotFound).Send([]byte(errAppNotFound))
+		featureEntities, err := featureLabDAO.FetchFeatures(app)
+		if err != nil {
+			return c.Status(http.StatusInternalServerError).Send([]byte(errGeneric))
+		}
+
+		return c.Status(http.StatusOK).JSON(model.ToFeatures(featureEntities))
 	})
 
 	// Fetches a specific feature for an app
 	v1.Get("/app/:app/features/:feature", func(c *fiber.Ctx) error {
-		app := c.Params("app")
-		feature := c.Params("feature")
+		app := strings.TrimSpace(c.Params("app"))
+		feature := strings.TrimSpace(c.Params("feature"))
 		if app == "" || feature == "" {
 			return c.Status(http.StatusBadRequest).Send([]byte(errBadRequest))
 		}
@@ -82,15 +81,7 @@ func main() {
 			return c.Status(http.StatusInternalServerError).Send([]byte(fmt.Sprintf(errGeneric, err)))
 		}
 
-		allocations := make([]featurelab.FeatureAllocation, len(featureEntity.Allocations))
-		for i, allocation := range featureEntity.Allocations {
-			allocations[i] = featurelab.NewFeatureAllocation(allocation.Treatment, allocation.Weight)
-		}
-
-		result := featurelab.NewFeature(featureEntity.App, featureEntity.Feature, allocations)
-		log.Printf("converted entity %+v to %+v\n", featureEntity, result)
-
-		return c.Status(http.StatusOK).JSON(featurelab.NewFeature(featureEntity.App, featureEntity.Feature, allocations))
+		return c.Status(http.StatusOK).JSON(model.ToFeature(featureEntity))
 	})
 
 	treatmentAssigner := featurelab.NewTreatmentAssigner()
