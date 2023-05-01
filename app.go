@@ -50,6 +50,9 @@ func main() {
 
 		feature.App = strings.TrimSpace(c.Params(App))
 		feature.Name = strings.TrimSpace(feature.Name)
+
+		log.Printf("Got request to create feature: %s:%s\n", feature.App, feature.Name)
+
 		if feature.App == "" || feature.Name == "" {
 			return sendError(c, featurelab.NewError(featurelab.ErrBadRequest, "invalid app and/or feature"))
 		}
@@ -71,6 +74,9 @@ func main() {
 
 		app := strings.TrimSpace(c.Params(App))
 		feature := strings.TrimSpace(c.Params(Feature))
+
+		log.Printf("Got request to update feature: %s:%s\n", app, feature)
+
 		if app == "" || feature == "" {
 			return sendError(c, featurelab.NewError(featurelab.ErrBadRequest, "invalid app and/or feature"))
 		}
@@ -99,6 +105,9 @@ func main() {
 	// Fetches all features for an app
 	v1.Get("/app/:app/features", func(c *fiber.Ctx) error {
 		app := strings.TrimSpace(c.Params(App))
+
+		log.Printf("Got request to fetch features for app: %s\n", app)
+
 		if app == "" {
 			return sendError(c, featurelab.NewError(featurelab.ErrBadRequest, "invalid app name"))
 		}
@@ -116,6 +125,9 @@ func main() {
 	v1.Get("/app/:app/features/:feature", func(c *fiber.Ctx) error {
 		app := strings.TrimSpace(c.Params(App))
 		feature := strings.TrimSpace(c.Params(Feature))
+
+		log.Printf("Got request to fetch feature: %s:%s\n", app, feature)
+
 		if app == "" || feature == "" {
 			return sendError(c, featurelab.NewError(featurelab.ErrBadRequest, "invalid app and/or feature"))
 		}
@@ -135,6 +147,9 @@ func main() {
 		app := strings.TrimSpace(c.Params(App))
 		feature := strings.TrimSpace(c.Params(Feature))
 		criteria := strings.TrimSpace(c.Params("criteria"))
+
+		log.Printf("Got request to calculate treatment for feature: %s:%s, criteria: %s\n", app, feature, criteria)
+
 		if app == "" || feature == "" || criteria == "" {
 			return sendError(c, featurelab.NewError(featurelab.ErrBadRequest, "invalid app, feature and/or criteria"))
 		}
