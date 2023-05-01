@@ -1,5 +1,6 @@
 [
   {
+    "_id": "FeatureLab:ShowRecommendations",
     "app": "FeatureLab",
     "feature": "ShowRecommendations",
     "allocations": [
@@ -18,6 +19,7 @@
     ]
   },
   {
+    "_id": "FeatureLab:ChangeBuyButtonColor",
     "app": "FeatureLab",
     "feature": "ChangeBuyButtonColor",
     "allocations": [

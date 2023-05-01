@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"github.com/gofiber/fiber/v2"
 	"github.com/torresjeff/go-feature-lab-server/handler"
 	"github.com/torresjeff/go-feature-lab-server/model"
@@ -12,6 +13,9 @@ import (
 	"strings"
 	"time"
 )
+
+const App = "app"
+const Feature = "feature"
 
 var ErrInternalServer = featurelab.NewError(featurelab.ErrInternalServerError, "an unexpected error occurred, please try again later")
 
@@ -36,18 +40,43 @@ func main() {
 	api := app.Group("/api")
 	v1 := api.Group("/v1")
 
+	// Create feature
+	v1.Post("/features", func(c *fiber.Ctx) error {
+		var feature featurelab.Feature
+		err := parseBody(c, &feature)
+		if err != nil {
+			return err
+		}
+
+		feature.App = strings.TrimSpace(feature.App)
+		feature.Name = strings.TrimSpace(feature.Name)
+		if feature.App == "" || feature.Name == "" {
+			return sendError(c, featurelab.NewError(featurelab.ErrBadRequest, "invalid app and/or feature"))
+		}
+
+		result, err := featureHandler.CreateFeature(feature)
+		if err == model.ErrDuplicateEntry {
+			return sendError(c, featurelab.NewError(featurelab.ErrBadRequest, "feature already exists"))
+		} else if err != nil {
+			log.Printf("error creating feature: %s\n", err)
+			return sendError(c, ErrInternalServer)
+		}
+
+		c.Set("Location", fmt.Sprintf("/app/%s/features/%s", result.App, result.Name))
+		return c.Status(http.StatusCreated).JSON(result)
+	})
+
 	// Fetches all features for an app
 	v1.Get("/app/:app/features", func(c *fiber.Ctx) error {
-		app := strings.TrimSpace(c.Params("app"))
+		app := strings.TrimSpace(c.Params(App))
 		if app == "" {
-			return c.Status(http.StatusBadRequest).JSON(
-				featurelab.NewError(featurelab.ErrBadRequest, "invalid app name"))
+			return sendError(c, featurelab.NewError(featurelab.ErrBadRequest, "invalid app name"))
 		}
 
 		features, err := featureHandler.FetchFeatures(app)
 		if err != nil {
 			log.Printf("error: %s\n", err)
-			return c.Status(http.StatusInternalServerError).JSON(ErrInternalServer)
+			return sendError(c, ErrInternalServer)
 		}
 
 		return c.Status(http.StatusOK).JSON(features)
@@ -55,40 +84,37 @@ func main() {
 
 	// Fetches a specific feature for an app
 	v1.Get("/app/:app/features/:feature", func(c *fiber.Ctx) error {
-		app := strings.TrimSpace(c.Params("app"))
-		feature := strings.TrimSpace(c.Params("feature"))
+		app := strings.TrimSpace(c.Params(App))
+		feature := strings.TrimSpace(c.Params(Feature))
 		if app == "" || feature == "" {
-			return c.Status(http.StatusBadRequest).JSON(
-				featurelab.NewError(featurelab.ErrBadRequest, "invalid app and/or feature"))
+			return sendError(c, featurelab.NewError(featurelab.ErrBadRequest, "invalid app and/or feature"))
 		}
 
-		featureEntity, err := featureLabDAO.FetchFeature(app, feature)
-		if err == model.ErrNotFound {
-			return c.Status(http.StatusNotFound).JSON(featurelab.NewError(featurelab.ErrNotFound, "app and/or feature doesn't exist"))
+		result, found, err := featureHandler.FetchFeature(app, feature)
+		if !found {
+			return sendError(c, featurelab.NewError(featurelab.ErrNotFound, "app and/or feature doesn't exist"))
 		} else if err != nil {
-			log.Printf("error: %s\n", err)
-			return c.Status(http.StatusInternalServerError).JSON(ErrInternalServer)
+			return sendError(c, ErrInternalServer)
 		}
 
-		return c.Status(http.StatusOK).JSON(model.ToFeature(featureEntity))
+		return c.Status(http.StatusOK).JSON(result)
 	})
 
 	// Calculates the treatment for a particular feature, given the criteria
 	v1.Get("/app/:app/features/:feature/treatment/:criteria", func(c *fiber.Ctx) error {
-		app := strings.TrimSpace(c.Params("app"))
-		feature := strings.TrimSpace(c.Params("feature"))
+		app := strings.TrimSpace(c.Params(App))
+		feature := strings.TrimSpace(c.Params(Feature))
 		criteria := strings.TrimSpace(c.Params("criteria"))
 		if app == "" || feature == "" || criteria == "" {
-			return c.Status(http.StatusBadRequest).JSON(
-				featurelab.NewError(featurelab.ErrBadRequest, "invalid app, feature and/or criteria"))
+			return sendError(c, featurelab.NewError(featurelab.ErrBadRequest, "invalid app, feature and/or criteria"))
 		}
 
 		treatment, err := featureHandler.GetTreatment(app, feature, criteria)
-		if err == model.ErrNotFound {
-			return c.Status(http.StatusNotFound).JSON(featurelab.NewError(featurelab.ErrNotFound, "app and/or feature doesn't exist"))
+		if err == handler.ErrNotFound {
+			return sendError(c, featurelab.NewError(featurelab.ErrNotFound, "app and/or feature doesn't exist"))
 		} else if err != nil {
 			log.Printf("error: %s\n", err)
-			return c.Status(http.StatusInternalServerError).JSON(ErrInternalServer)
+			return sendError(c, ErrInternalServer)
 		}
 
 		return c.Status(http.StatusOK).JSON(treatment)
@@ -96,4 +122,20 @@ func main() {
 
 	log.Fatal(app.Listen(":3000"))
 
+}
+
+func parseBody(c *fiber.Ctx, out interface{}) error {
+	err := c.BodyParser(out)
+	if err == fiber.ErrUnprocessableEntity {
+		return sendError(c, featurelab.NewError(featurelab.ErrBadRequest, "invalid request (did you forget to set Content-Type header?)"))
+	} else if err != nil {
+		log.Printf("error parsing request body: %s", err)
+		return sendError(c, featurelab.NewError(featurelab.ErrBadRequest, "invalid feature JSON"))
+	}
+
+	return nil
+}
+
+func sendError(c *fiber.Ctx, err featurelab.Error) error {
+	return c.Status(int(err.Code)).JSON(err)
 }
