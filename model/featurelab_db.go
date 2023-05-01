@@ -16,6 +16,7 @@ const FeatureLabCollection = "featurelab"
 const DefaultQueryTimeout = 3 * time.Second
 
 var ErrDuplicateEntry = errors.New("entry already exists")
+var ErrNoEntry = errors.New("no entry exists")
 
 type FeatureAllocationEntity struct {
 	Treatment string `bson:"treatment"`
@@ -57,9 +58,6 @@ func NewFeatureLabDAO(ctx context.Context, mongoURI string, queryTimeout time.Du
 }
 
 func (dao *FeatureLabDAO) CreateFeature(feature featurelab.Feature) (FeatureEntity, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), dao.queryTimeout)
-	defer cancel()
-
 	_, found, _ := dao.FetchFeature(feature.App, feature.Name)
 	if found {
 		return FeatureEntity{}, ErrDuplicateEntry
@@ -71,6 +69,9 @@ func (dao *FeatureLabDAO) CreateFeature(feature featurelab.Feature) (FeatureEnti
 	featureEntity.CreatedTime = now
 	featureEntity.UpdatedTime = now
 
+	ctx, cancel := context.WithTimeout(context.Background(), dao.queryTimeout)
+	defer cancel()
+
 	_, err := dao.featureLabCollection.InsertOne(ctx, featureEntity)
 	if err != nil {
 		// TODO: retries?
@@ -78,6 +79,31 @@ func (dao *FeatureLabDAO) CreateFeature(feature featurelab.Feature) (FeatureEnti
 	}
 
 	return featureEntity, nil
+}
+
+func (dao *FeatureLabDAO) UpdateFeature(feature featurelab.Feature) (FeatureEntity, error) {
+	entityToUpdate, found, _ := dao.FetchFeature(feature.App, feature.Name)
+	if !found {
+		return FeatureEntity{}, ErrNoEntry
+	}
+
+	entityToUpdate.UpdatedTime = time.Now().Format(time.RFC3339)
+	// The only thing we can really update is the allocations, app and feature name can't change as they make up the ID
+	entityToUpdate.Allocations = ToFeatureAllocationEntities(feature.Allocations)
+
+	ctx, cancel := context.WithTimeout(context.Background(), dao.queryTimeout)
+	defer cancel()
+
+	result, err := dao.featureLabCollection.ReplaceOne(ctx, bson.D{{"_id", entityToUpdate.Id}}, entityToUpdate)
+	if err != nil {
+		return FeatureEntity{}, err
+	}
+	if result.MatchedCount == 0 {
+		return FeatureEntity{}, ErrNoEntry
+	}
+
+	return entityToUpdate, nil
+
 }
 
 // FetchFeature looks up a feature using app and feature name. It returns a FeatureEntity, a boolean that specifies whether the record

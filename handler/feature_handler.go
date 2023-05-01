@@ -29,6 +29,15 @@ func (handler *FeatureHandler) CreateFeature(feature featurelab.Feature) (featur
 	return model.ToFeature(featureEntity), nil
 }
 
+func (handler *FeatureHandler) UpdateFeature(feature featurelab.Feature) (featurelab.Feature, error) {
+	featureEntity, err := handler.dao.UpdateFeature(feature)
+	if err != nil {
+		return featurelab.Feature{}, err
+	}
+
+	return model.ToFeature(featureEntity), nil
+}
+
 func (handler *FeatureHandler) FetchFeatures(app string) ([]featurelab.Feature, error) {
 	featureEntities, err := handler.dao.FetchFeatures(app)
 	if err != nil {

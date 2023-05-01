@@ -41,14 +41,14 @@ func main() {
 	v1 := api.Group("/v1")
 
 	// Create feature
-	v1.Post("/features", func(c *fiber.Ctx) error {
+	v1.Post("/app/:app/features", func(c *fiber.Ctx) error {
 		var feature featurelab.Feature
 		err := parseBody(c, &feature)
 		if err != nil {
 			return err
 		}
 
-		feature.App = strings.TrimSpace(feature.App)
+		feature.App = strings.TrimSpace(c.Params(App))
 		feature.Name = strings.TrimSpace(feature.Name)
 		if feature.App == "" || feature.Name == "" {
 			return sendError(c, featurelab.NewError(featurelab.ErrBadRequest, "invalid app and/or feature"))
@@ -58,12 +58,42 @@ func main() {
 		if err == model.ErrDuplicateEntry {
 			return sendError(c, featurelab.NewError(featurelab.ErrBadRequest, "feature already exists"))
 		} else if err != nil {
-			log.Printf("error creating feature: %s\n", err)
+			log.Printf("Error creating feature: %s\n", err)
 			return sendError(c, ErrInternalServer)
 		}
 
 		c.Set("Location", fmt.Sprintf("/app/%s/features/%s", result.App, result.Name))
 		return c.Status(http.StatusCreated).JSON(result)
+	})
+
+	// Update feature
+	v1.Put("/app/:app/features/:feature", func(c *fiber.Ctx) error {
+
+		app := strings.TrimSpace(c.Params(App))
+		feature := strings.TrimSpace(c.Params(Feature))
+		if app == "" || feature == "" {
+			return sendError(c, featurelab.NewError(featurelab.ErrBadRequest, "invalid app and/or feature"))
+		}
+
+		var f featurelab.Feature
+		err := parseBody(c, &f)
+		f.App = app
+		f.Name = feature
+		if err != nil {
+			return err
+		} else if f.Allocations == nil {
+			return sendError(c, featurelab.NewError(featurelab.ErrBadRequest, "invalid allocations, allocations must not be null"))
+		}
+
+		_, err = featureHandler.UpdateFeature(f)
+		if err == model.ErrNoEntry {
+			return sendError(c, featurelab.NewError(featurelab.ErrNotFound, "feature not found"))
+		} else if err != nil {
+			log.Printf("Error updating feature: %s\n", err)
+			return sendError(c, ErrInternalServer)
+		}
+
+		return c.Status(http.StatusNoContent).Send(nil)
 	})
 
 	// Fetches all features for an app
