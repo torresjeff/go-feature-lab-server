@@ -59,6 +59,10 @@ github.com/torresjeff/go-feature-lab v0.0.0-20230430172025-ccbe3d8fa0aa h1:nwM4U
 github.com/torresjeff/go-feature-lab v0.0.0-20230430172025-ccbe3d8fa0aa/go.mod h1:JCAqKwmY0xdXDsENMdzzv5zV9ac+5xedDkbVSf4TCGc=
 github.com/torresjeff/go-feature-lab v0.0.0-20230430183956-5f5c0be112e2 h1:YpFRbxKTePlrSGmoF/arZ/rbohxSB0GZoUgGq0fSvqE=
 github.com/torresjeff/go-feature-lab v0.0.0-20230430183956-5f5c0be112e2/go.mod h1:JCAqKwmY0xdXDsENMdzzv5zV9ac+5xedDkbVSf4TCGc=
+github.com/torresjeff/go-feature-lab v0.0.0-20230501121305-80c3fbbe614d h1:cPa1CH/y8ibolWR1YIMARckfi/OT9tugnDPK4BpPGhQ=
+github.com/torresjeff/go-feature-lab v0.0.0-20230501121305-80c3fbbe614d/go.mod h1:JCAqKwmY0xdXDsENMdzzv5zV9ac+5xedDkbVSf4TCGc=
+github.com/torresjeff/go-feature-lab v0.0.0-20230501123723-11b479cc8d33 h1:vkmXKiI+b8mD8GTeryo/BzUDcrqyvF3ADIJcZEKAbWg=
+github.com/torresjeff/go-feature-lab v0.0.0-20230501123723-11b479cc8d33/go.mod h1:JCAqKwmY0xdXDsENMdzzv5zV9ac+5xedDkbVSf4TCGc=
 github.com/valyala/bytebufferpool v1.0.0 h1:GqA5TC/0021Y/b9FG4Oi9Mr3q7XYx6KllzawFIhcdPw=
 github.com/valyala/bytebufferpool v1.0.0/go.mod h1:6bBcMArwyJ5K/AmCkWv1jt77kVWyCJ6HpOuEn7z0Csc=
 github.com/valyala/fasthttp v1.46.0 h1:6ZRhrFg8zBXTRYY6vdzbFhqsBd7FVv123pV2m9V87U4=

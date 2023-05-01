@@ -4,13 +4,11 @@ go 1.20
 
 require (
 	github.com/gofiber/fiber/v2 v2.44.0
-	github.com/torresjeff/go-feature-lab v0.0.0-20230430183956-5f5c0be112e2
+	github.com/torresjeff/go-feature-lab v0.0.0-20230501123723-11b479cc8d33
 	go.mongodb.org/mongo-driver v1.11.4
 )
 
-//replace (
-//	github.com/torresjeff/go-feature-lab => ../go-feature-lab
-//)
+//replace github.com/torresjeff/go-feature-lab => ../go-feature-lab
 
 require (
 	github.com/andybalholm/brotli v1.0.5 // indirect
