@@ -5,11 +5,11 @@ import (
 	"flag"
 	"fmt"
 	"github.com/gofiber/fiber/v2"
+	"github.com/torresjeff/go-feature-lab-server/handler"
 	"github.com/torresjeff/go-feature-lab-server/model"
 	"github.com/torresjeff/go-feature-lab/featurelab"
 	"log"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 )
@@ -28,23 +28,11 @@ func main() {
 	featureLabDAO, disconnect := model.NewFeatureLabDAO(dbCtx, mongoURI, model.DefaultQueryTimeout)
 	defer disconnect()
 
-	features := []featurelab.Feature{
-		featurelab.NewFeature("FeatureLab", "ShowRecommendations", []featurelab.FeatureAllocation{
-			featurelab.NewFeatureAllocation("C", 10),
-			featurelab.NewFeatureAllocation("T1", 10),
-			featurelab.NewFeatureAllocation("T2", 10),
-		}),
-		featurelab.NewFeature("FeatureLab", "ChangeBuyButtonColor", []featurelab.FeatureAllocation{
-			featurelab.NewFeatureAllocation("C", 32),
-			featurelab.NewFeatureAllocation("T1", 68),
-		}),
-	}
-
-	errAppNotFound := "{\"error\": \"app or feature not found\"}"
-	errFeatureNotFound := "{\"error\": \"feature not found or invalid\"}"
-	errInvalidCriteria := "{\"error\": \"criteria is empty or not valid\"}"
+	errNotFound := "{\"error\": \"app or feature not found\"}"
 	errBadRequest := "{\"error\": \"invalid request, please check your request and try again\"}"
 	errGeneric := "{\"error\": \"%v\"}"
+
+	featureHandler := handler.NewFeatureHandler(featureLabDAO, featurelab.NewTreatmentAssigner())
 
 	app := fiber.New()
 
@@ -58,12 +46,12 @@ func main() {
 			return c.Status(http.StatusBadRequest).Send([]byte(errBadRequest))
 		}
 
-		featureEntities, err := featureLabDAO.FetchFeatures(app)
+		features, err := featureHandler.FetchFeatures(app)
 		if err != nil {
-			return c.Status(http.StatusInternalServerError).Send([]byte(errGeneric))
+			return c.Status(http.StatusInternalServerError).Send([]byte(fmt.Sprintf(errGeneric, err)))
 		}
 
-		return c.Status(http.StatusOK).JSON(model.ToFeatures(featureEntities))
+		return c.Status(http.StatusOK).JSON(features)
 	})
 
 	// Fetches a specific feature for an app
@@ -84,37 +72,23 @@ func main() {
 		return c.Status(http.StatusOK).JSON(model.ToFeature(featureEntity))
 	})
 
-	treatmentAssigner := featurelab.NewTreatmentAssigner()
 	// Calculates the treatment for a particular feature, given the criteria (as query param). Criteria should be URL encoded.
-	v1.Get("/app/:app/features/:feature/treatment", func(c *fiber.Ctx) error {
-		criteria := c.Query("criteria")
-		criteria, err := url.QueryUnescape(criteria)
-		if err != nil {
-			return c.Status(http.StatusBadRequest).Send([]byte(fmt.Sprintf(errGeneric, err)))
-		}
-		if criteria == "" {
-			return c.Status(http.StatusBadRequest).Send([]byte(errInvalidCriteria))
+	v1.Get("/app/:app/features/:feature/treatment/:criteria", func(c *fiber.Ctx) error {
+		app := strings.TrimSpace(c.Params("app"))
+		feature := strings.TrimSpace(c.Params("feature"))
+		criteria := strings.TrimSpace(c.Params("criteria"))
+		if app == "" || feature == "" || criteria == "" {
+			return c.Status(http.StatusBadRequest).Send([]byte(errBadRequest))
 		}
 
-		if c.Params("app") == "FeatureLab" {
-			if c.Params("feature") == "ShowRecommendations" {
-				treatment, err := treatmentAssigner.GetTreatmentAssignment(features[0], criteria)
-				if err != nil {
-					return c.Status(http.StatusInternalServerError).Send([]byte(fmt.Sprintf(errGeneric, err)))
-				}
-				return c.Status(http.StatusOK).JSON(treatment)
-			} else if c.Params("feature") == "ChangeBuyButtonColor" {
-				treatment, err := treatmentAssigner.GetTreatmentAssignment(features[1], criteria)
-				if err != nil {
-					return c.Status(http.StatusInternalServerError).Send([]byte(fmt.Sprintf(errGeneric, err)))
-				}
-				return c.Status(http.StatusOK).JSON(treatment)
-			} else {
-				return c.Status(http.StatusNotFound).Send([]byte(errFeatureNotFound))
-			}
+		treatment, err := featureHandler.GetTreatment(app, feature, criteria)
+		if err == model.ErrNotFound {
+			return c.Status(http.StatusNotFound).Send([]byte(errNotFound))
+		} else if err != nil {
+			return c.Status(http.StatusInternalServerError).Send([]byte(fmt.Sprintf(errGeneric, err)))
 		}
 
-		return c.Status(http.StatusNotFound).Send([]byte(errAppNotFound))
+		return c.Status(http.StatusOK).JSON(treatment)
 	})
 
 	log.Fatal(app.Listen(":3000"))
