@@ -183,6 +183,6 @@ func parseBody(c *fiber.Ctx, out interface{}) error {
 	return nil
 }
 
-func sendError(c *fiber.Ctx, err featurelab.Error) error {
+func sendError(c *fiber.Ctx, err *featurelab.Error) error {
 	return c.Status(int(err.Code)).JSON(err)
 }
