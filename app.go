@@ -20,6 +20,8 @@ const Feature = "feature"
 var ErrInternalServer = featurelab.NewError(featurelab.ErrInternalServerError, "an unexpected error occurred, please try again later")
 
 func main() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
 	var mongoURI string
 	flag.StringVar(&mongoURI,
 		"mongo",
